@@ -45,6 +45,10 @@ MarlinUI ui;
   #endif
 #endif
 
+#if ENABLED(LCD_I2C_TYPE_PCA9555) && ENABLED(USE_I2C_LCD_KEYS)
+  #include <LiquidCrystal_I2C.h>    // for key mapping symbols
+#endif
+
 #if LCD_HAS_WAIT_FOR_MOVE
   bool MarlinUI::wait_for_move; // = false
 #endif
@@ -148,6 +152,11 @@ constexpr uint8_t epps = ENCODER_PULSES_PER_STEP;
   volatile uint8_t MarlinUI::buttons;
   #if HAS_SLOW_BUTTONS
     volatile uint8_t MarlinUI::slow_buttons;
+
+    #ifdef READ_I2C_PCA9555_KEYS_IN_MAIN
+      volatile uint8_t MarlinUI::i2c_buttons;
+      volatile millis_t MarlinUI::next_i2c_button_read;
+    #endif
   #endif
   #if HAS_TOUCH_XPT2046
     #include "touch/touch_buttons.h"
@@ -374,6 +383,11 @@ void MarlinUI::init() {
 
   #if HAS_ENCODER_ACTION && HAS_SLOW_BUTTONS
     slow_buttons = 0;
+  #endif
+
+  #if READ_I2C_PCA9555_KEYS_IN_MAIN
+    i2c_buttons = 0;
+    next_i2c_button_read = 0;
   #endif
 
   update_buttons();
@@ -875,6 +889,63 @@ void MarlinUI::update() {
 
   #endif // HAS_LCD_MENU
 
+  #ifdef READ_I2C_PCA9555_KEYS_IN_MAIN
+    if (ELAPSED(ms, next_i2c_button_read)) {
+      uint8_t bpe = read_i2c_keyEvent(); // has its own debounce algorithm
+      // therefore needs to be called more frequent
+
+      if (bpe == keyReadErrorEvent) {
+        next_i2c_button_read += LCD_READKEY_INTERVAL*4;
+             // avoid congestion in case of errorneous reading
+         _DBG("i2cKE\n");
+      } else {
+        next_i2c_button_read += LCD_READKEY_INTERVAL;
+             // see also definition of LCD_KEY_DEBOUNCE_CNT
+
+        if (bpe != keyNoEvent) {
+          _DBG("i2cBPE\t");  _DBH(bpe);  _DBC('\n');
+
+          switch(bpe) {
+            case (keyBackEvent|keyPress):
+              i2c_buttons |= EN_D;
+              break;
+
+            #ifdef ENABLE_TWO_FINGER_KEYPRESS // two finger simultaneous press
+//          case keyDownUpEvent: break;
+              // what is the sense of pressing up+down together ?? we must think ....
+
+              case (keyBackDownEvent|keyPress):
+              case (keyBackDownEvent|keyRelease):
+                encoderDiff = -ENCODER_FEEDRATE_DEADZONE * encoderDirection;          // fast changing print speed factor
+                break;
+
+              case (keyUpEnterEvent|keyPress):
+              case (keyUpEnterEvent|keyRelease):
+                encoderDiff = ENCODER_FEEDRATE_DEADZONE * encoderDirection; // fast changing print speed factor
+                break;
+            #endif // ENABLE_TWO_FINGER_KEYPRESS
+
+            case (keyDownEvent|keyPress):
+            case (keyDownEvent|keyRelease):
+              encoderDiff = -encoderDirection;
+              break;
+
+            case (keyUpEvent|keyPress):
+            case (keyUpEvent|keyRelease):
+              encoderDiff = encoderDirection;
+              break;
+
+            case (keyEnterEvent|keyPress):
+              i2c_buttons |= EN_C;
+              break;
+          } // switch keyMask
+//      } else { // != noEvent
+//        _DBG("i2cNK\n");
+        }
+      } // ! keyReadError
+    } // ELAPSED(ms, next_i2c_button_read)
+  #endif
+
   if (ELAPSED(ms, next_lcd_update_ms) || TERN0(HAS_GRAPHICAL_LCD, drawing_screen)) {
 
     next_lcd_update_ms = ms + LCD_UPDATE_INTERVAL;
@@ -1162,7 +1233,7 @@ void MarlinUI::update() {
 
       #if HAS_DIGITAL_BUTTONS
 
-        #if ANY_BUTTON(EN1, EN2, ENC, BACK)
+        #if ANY_BUTTON(EN1, EN2, ENC, BACK) && DISABLED(USE_I2C_LCD_KEYS)
 
           uint8_t newbutton = 0;
 

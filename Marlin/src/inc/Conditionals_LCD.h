@@ -350,6 +350,38 @@
 
   #define STD_ENCODER_PULSES_PER_STEP 1
   #define STD_ENCODER_STEPS_PER_MENU_ITEM 2
+#elif ENABLED(LCD_GENERIC_I2C_PCA9555)
+  #include "buildConfig/LIQUIDCRYSTAL_I2C_CONFIG.h"
+
+  #ifndef LCD_WIDTH
+    #define LCD_WIDTH 16
+  #endif
+  #ifndef LCD_HEIGHT
+      #define LCD_HEIGHT 2
+  #endif
+
+  #if (LCD_HEIGHT < 4) || (LCD_WIDTH <20)
+    #define SLIM_LCD_MENUS
+  #endif
+
+  #define LCD_I2C_TYPE_PCA9555
+
+  #ifndef LCD_I2C_ADDRESS
+      #define LCD_I2C_ADDRESS 0x20
+      // I2C Address of the port expander can be jumpered from 0x20 .. 0x27
+  #endif
+
+  #ifdef USE_I2C_LCD_KEYS
+    #define READ_I2C_PCA9555_KEYS_IN_MAIN 1
+  #endif
+
+  #define IS_ULTIPANEL
+
+  #define STD_ENCODER_PULSES_PER_STEP       1
+  #define STD_ENCODER_STEPS_PER_MENU_ITEM   2
+  #define ENCODER_FEEDRATE_DEADZONE         4
+
+  #define REVERSE_MENU_DIRECTION
 
 #elif ENABLED(G3D_PANEL)
 

@@ -64,6 +64,12 @@
 
 #elif ENABLED(LCD_I2C_TYPE_PCA8574)
 
+#include <LiquidCrystal_I2C.h>
+  #define LCD_CLASS LiquidCrystal_I2C
+
+#elif ENABLED(LCD_I2C_TYPE_PCA9555)
+
+  #include <Wire.h>
   #include <LiquidCrystal_I2C.h>
   #define LCD_CLASS LiquidCrystal_I2C
 

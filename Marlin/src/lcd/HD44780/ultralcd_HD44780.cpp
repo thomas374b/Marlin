@@ -66,7 +66,7 @@
     #endif
   );
 
-#elif ENABLED(LCD_I2C_TYPE_PCA8574)
+#elif EITHER(LCD_I2C_TYPE_PCA8574,LCD_I2C_TYPE_PCA9555)
 
   LCD_CLASS lcd(LCD_I2C_ADDRESS, LCD_WIDTH, LCD_HEIGHT);
 
@@ -366,6 +366,14 @@ void MarlinUI::init_lcd() {
   lcd.clear();
 }
 
+#if ENABLED(LCD_I2C_TYPE_PCA9555) && ENABLED(USE_I2C_LCD_KEYS)
+  uint8_t MarlinUI::read_i2c_keyEvent() {
+    return  lcd.buttonPressEvent();
+  }
+
+  extern int8_t encoderDiff;
+#endif
+
 bool MarlinUI::detected() {
   return (true
     #if EITHER(LCD_I2C_TYPE_MCP23017, LCD_I2C_TYPE_MCP23008) && defined(DETECT_DEVICE)
@@ -389,6 +397,10 @@ bool MarlinUI::detected() {
           slow_bits &= ~(B_MI | B_RI); // Disable LCD clicked buttons if screen is updated
       #endif
       return slow_bits;
+    #elif (defined(READ_I2C_PCA9555_KEYS_IN_MAIN))
+      uint8_t result = i2c_buttons;
+      i2c_buttons = 0;
+      return result;
     #endif // LCD_I2C_TYPE_MCP23017
   }
 #endif

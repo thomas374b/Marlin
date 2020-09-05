@@ -35,9 +35,11 @@
   #define HAS_ENCODER_ACTION 1
 #endif
 #if (!HAS_ADC_BUTTONS && ENABLED(NEWPANEL)) || BUTTONS_EXIST(EN1, EN2)
-  #define HAS_ENCODER_WHEEL 1
+  #if DISABLED(USE_I2C_LCD_KEYS)
+    #define HAS_ENCODER_WHEEL 1
+  #endif
 #endif
-#if HAS_ENCODER_WHEEL || ANY_BUTTON(ENC, BACK, UP, DWN, LFT, RT)
+#if EITHER(HAS_ENCODER_WHEEL,USE_I2C_LCD_KEYS) || ANY_BUTTON(ENC, BACK, UP, DWN, LFT, RT)
   #define HAS_DIGITAL_BUTTONS 1
 #endif
 #if !HAS_ADC_BUTTONS && (ENABLED(REPRAPWORLD_KEYPAD) || (HAS_SPI_LCD && DISABLED(NEWPANEL)))
@@ -45,7 +47,7 @@
 #endif
 
 // I2C buttons must be read in the main thread
-#if EITHER(LCD_I2C_VIKI, LCD_I2C_PANELOLU2)
+#if ANY(LCD_I2C_VIKI, LCD_I2C_PANELOLU2, USE_I2C_LCD_KEYS)
   #define HAS_SLOW_BUTTONS 1
 #endif
 
@@ -215,7 +217,7 @@
 
 #endif
 
-#if BUTTON_EXISTS(BACK) || HAS_TOUCH_XPT2046
+#if BUTTON_EXISTS(BACK) || EITHER(HAS_TOUCH_XPT2046,USE_I2C_LCD_KEYS)
   #define BLEN_D 3
   #define EN_D _BV(BLEN_D)
   #define LCD_BACK_CLICKED() (buttons & EN_D)
@@ -324,6 +326,10 @@ public:
     #endif
     static inline bool detected() { return true; }
     static inline void init_lcd() {}
+  #endif
+
+  #if ENABLED(LCD_I2C_TYPE_PCA9555) && ENABLED(USE_I2C_LCD_KEYS)
+    static uint8_t read_i2c_keyEvent();
   #endif
 
   #if HAS_DISPLAY
@@ -636,6 +642,11 @@ public:
     #if HAS_SLOW_BUTTONS
       static volatile uint8_t slow_buttons;
       static uint8_t read_slow_buttons();
+
+      #if READ_I2C_PCA9555_KEYS_IN_MAIN
+        static volatile millis_t next_i2c_button_read;
+        static volatile uint8_t i2c_buttons;
+      #endif
     #endif
 
     static void update_buttons();
